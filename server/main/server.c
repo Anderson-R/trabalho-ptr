@@ -297,8 +297,8 @@ void uart_task(void *pvParameters)
         }
 
         if ((is_connected)) {
-            uint8_t temp[2] = {0, 1};
-            esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL],2, temp, false);
+            uint8_t temp[2] = {'a', 'b'};
+            //esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL],2, temp, false);
         }                  
     }
     vTaskDelete(NULL);
@@ -419,6 +419,8 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         //ESP_LOGE("test", "%d", p_data->write.value[i]);
                     }
                     ESP_LOGE("test", "received %d bytes", p_data->write.len);
+                    uint8_t temp[2] = {'a', 'b'};
+                    esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL],2, temp, false);
 #endif
                 }else{
                     //TODO:

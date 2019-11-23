@@ -1,74 +1,4 @@
-/*
-   This example code is in the Public Domain (or CC0 licensed, at your option.)
-
-   Unless required by applicable law or agreed to in writing, this
-   software is distributed on an "AS IS" BASIS, WITHOUT WARRANTIES OR
-   CONDITIONS OF ANY KIND, either express or implied.
-*/
-
-/****************************************************************************
-*
-* This file is for ble spp client demo.
-*
-****************************************************************************/
-
-#include <stdint.h>
-#include <string.h>
-#include <stdbool.h>
-#include <stdio.h>
-#include "driver/uart.h"
-
-#include "esp_bt.h"
-#include "nvs_flash.h"
-#include "esp_bt_device.h"
-#include "esp_gap_ble_api.h"
-#include "esp_gattc_api.h"
-#include "esp_gatt_defs.h"
-#include "esp_bt_main.h"
-#include "esp_system.h"
-#include "esp_gatt_common_api.h"
-#include "esp_log.h"
-#include "freertos/FreeRTOS.h"
-
-#define GATTC_TAG                   "GATTC_SPP_DEMO"
-#define PROFILE_NUM                 1
-#define PROFILE_APP_ID              0
-#define BT_BD_ADDR_STR              "%02x:%02x:%02x:%02x:%02x:%02x"
-#define BT_BD_ADDR_HEX(addr)        addr[0],addr[1],addr[2],addr[3],addr[4],addr[5]
-#define ESP_GATT_SPP_SERVICE_UUID   0xABF0
-#define SCAN_ALL_THE_TIME           0
-
-struct gattc_profile_inst {
-    esp_gattc_cb_t gattc_cb;
-    uint16_t gattc_if;
-    uint16_t app_id;
-    uint16_t conn_id;
-    uint16_t service_start_handle;
-    uint16_t service_end_handle;
-    uint16_t char_handle;
-    esp_bd_addr_t remote_bda;
-};
-
-enum{
-    SPP_IDX_SVC,
-
-    SPP_IDX_SPP_DATA_RECV_VAL,
-
-    SPP_IDX_SPP_DATA_NTY_VAL,
-    SPP_IDX_SPP_DATA_NTF_CFG,
-
-    SPP_IDX_SPP_COMMAND_VAL,
-
-    SPP_IDX_SPP_STATUS_VAL,
-    SPP_IDX_SPP_STATUS_CFG,
-
-#ifdef SUPPORT_HEARTBEAT
-    SPP_IDX_SPP_HEARTBEAT_VAL,
-    SPP_IDX_SPP_HEARTBEAT_CFG,
-#endif
-
-    SPP_IDX_NB,
-};
+#include "client.h"
 
 ///Declare static functions
 static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param);
@@ -108,19 +38,14 @@ static esp_gattc_db_elem_t *db = NULL;
 static esp_ble_gap_cb_param_t scan_rst;
 static xQueueHandle cmd_reg_queue = NULL;
 QueueHandle_t spp_uart_queue = NULL;
-
-#ifdef SUPPORT_HEARTBEAT
-static uint8_t  heartbeat_s[9] = {'E','s','p','r','e','s','s','i','f'};
-static xQueueHandle cmd_heartbeat_queue = NULL;
-#endif
+QueueHandle_t commQueue = NULL;
 
 static esp_bt_uuid_t spp_service_uuid = {
     .len  = ESP_UUID_LEN_16,
     .uuid = {.uuid16 = ESP_GATT_SPP_SERVICE_UUID,},
 };
 
-static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data)
-{
+static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data){
     uint8_t handle = 0;
 
     if(p_data->notify.is_notify == true){
@@ -184,8 +109,7 @@ static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data)
     }
 }
 
-static void free_gattc_srv_db(void)
-{
+static void free_gattc_srv_db(void){
     is_connect = false;
     spp_gattc_if = 0xff;
     spp_conn_id = 0;
@@ -202,8 +126,7 @@ static void free_gattc_srv_db(void)
     }
 }
 
-static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
-{
+static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param){
     uint8_t *adv_name = NULL;
     uint8_t adv_name_len = 0;
     esp_err_t err;
@@ -275,8 +198,7 @@ static void esp_gap_cb(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *par
     }
 }
 
-static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     ESP_LOGI(GATTC_TAG, "EVT %d, gattc if %d", event, gattc_if);
 
     /* If event is register event, store the gattc_if for each profile */
@@ -303,8 +225,7 @@ static void esp_gattc_cb(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp
     } while (0);
 }
 
-static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param)
-{
+static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_t gattc_if, esp_ble_gattc_cb_param_t *param){
     esp_ble_gattc_cb_param_t *p_data = (esp_ble_gattc_cb_param_t *)param;
 
     switch (event) {
@@ -384,16 +305,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
             xQueueSend(cmd_reg_queue, &cmd,10/portTICK_PERIOD_MS);
             break;
         case SPP_IDX_SPP_STATUS_VAL:
-#ifdef SUPPORT_HEARTBEAT
-            cmd = SPP_IDX_SPP_HEARTBEAT_VAL;
-            xQueueSend(cmd_reg_queue, &cmd, 10/portTICK_PERIOD_MS);
-#endif
-            break;
-#ifdef SUPPORT_HEARTBEAT
-        case SPP_IDX_SPP_HEARTBEAT_VAL:
-            xQueueSend(cmd_heartbeat_queue, &cmd, 10/portTICK_PERIOD_MS);
-            break;
-#endif
+
         default:
             break;
         };
@@ -458,8 +370,7 @@ static void gattc_profile_event_handler(esp_gattc_cb_event_t event, esp_gatt_if_
     }
 }
 
-void spp_client_reg_task(void* arg)
-{
+void spp_client_reg_task(void* arg){
     uint16_t cmd_id;
     for(;;) {
         vTaskDelay(100 / portTICK_PERIOD_MS);
@@ -471,46 +382,11 @@ void spp_client_reg_task(void* arg)
                 ESP_LOGI(GATTC_TAG,"Index = %d,UUID = 0x%04x, handle = %d \n", cmd_id, (db+SPP_IDX_SPP_STATUS_VAL)->uuid.uuid.uuid16, (db+SPP_IDX_SPP_STATUS_VAL)->attribute_handle);
                 esp_ble_gattc_register_for_notify(spp_gattc_if, gl_profile_tab[PROFILE_APP_ID].remote_bda, (db+SPP_IDX_SPP_STATUS_VAL)->attribute_handle);
             }
-#ifdef SUPPORT_HEARTBEAT
-            else if(cmd_id == SPP_IDX_SPP_HEARTBEAT_VAL){
-                ESP_LOGI(GATTC_TAG,"Index = %d,UUID = 0x%04x, handle = %d \n", cmd_id, (db+SPP_IDX_SPP_HEARTBEAT_VAL)->uuid.uuid.uuid16, (db+SPP_IDX_SPP_HEARTBEAT_VAL)->attribute_handle);
-                esp_ble_gattc_register_for_notify(spp_gattc_if, gl_profile_tab[PROFILE_APP_ID].remote_bda, (db+SPP_IDX_SPP_HEARTBEAT_VAL)->attribute_handle);
-            }
-#endif
         }
     }
 }
 
-#ifdef SUPPORT_HEARTBEAT
-void spp_heart_beat_task(void * arg)
-{
-    uint16_t cmd_id;
-
-    for(;;) {
-        vTaskDelay(50 / portTICK_PERIOD_MS);
-        if(xQueueReceive(cmd_heartbeat_queue, &cmd_id, portMAX_DELAY)) {
-            while(1){
-                if((is_connect == true)&&((db+SPP_IDX_SPP_HEARTBEAT_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))){
-                    esp_ble_gattc_write_char( spp_gattc_if,
-                                              spp_conn_id,
-                                              (db+SPP_IDX_SPP_HEARTBEAT_VAL)->attribute_handle,
-                                              sizeof(heartbeat_s),
-                                              (uint8_t *)heartbeat_s,
-                                              ESP_GATT_WRITE_TYPE_RSP,
-                                              ESP_GATT_AUTH_REQ_NONE);
-                    vTaskDelay(5000 / portTICK_PERIOD_MS);
-                }else{
-                    ESP_LOGI(GATTC_TAG,"disconnect\n");
-                    break;
-                }
-            }
-        }
-    }
-}
-#endif
-
-void ble_client_appRegister(void)
-{
+void ble_client_appRegister(void){
     esp_err_t status;
     char err_msg[20];
 
@@ -535,71 +411,139 @@ void ble_client_appRegister(void)
 
     cmd_reg_queue = xQueueCreate(10, sizeof(uint32_t));
     xTaskCreate(spp_client_reg_task, "spp_client_reg_task", 2048, NULL, 10, NULL);
-
-#ifdef SUPPORT_HEARTBEAT
-    cmd_heartbeat_queue = xQueueCreate(10, sizeof(uint32_t));
-    xTaskCreate(spp_heart_beat_task, "spp_heart_beat_task", 2048, NULL, 10, NULL);
-#endif
 }
 
-void uart_task(void *pvParameters){
-    uart_event_t event;
+void commTask(void *pvParameters){
+    request req;
     for (;;) {
-        //Waiting for UART event.
-        if (xQueueReceive(spp_uart_queue, (void * )&event, 1000 / portTICK_PERIOD_MS)) {
-            switch (event.type) {
-            //Event of UART receving data
-            case UART_DATA:
-                if (event.size && (is_connect == true) && ((db+SPP_IDX_SPP_DATA_RECV_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))) {
-                    uint8_t * temp = NULL;
-                    temp = (uint8_t *)malloc(sizeof(uint8_t)*event.size);
-                    if(temp == NULL){
-                        ESP_LOGE(GATTC_TAG, "malloc failed,%s L#%d\n", __func__, __LINE__);
+        //Waiting for request.
+        if (xQueueReceive(commQueue, &req, 1000 / portTICK_PERIOD_MS)) {
+            if ((is_connect == true) && ((db+SPP_IDX_SPP_DATA_RECV_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))) {
+                ESP_LOGI("test", "sending");
+                uint8_t* temp = NULL;
+                size_t len = 0;
+                switch(req.cmd){
+                    case WITHDRAW:
+                        len = 11;
+                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
+                        memset(temp, 0x0, len);
+                        temp[0] = (uint8_t)(req.cmd);
+                        temp[1] = (uint8_t)(req.acount>>24);
+                        temp[2] = (uint8_t)(req.acount>>16);
+                        temp[3] = (uint8_t)(req.acount>>8);
+                        temp[4] = (uint8_t)(req.acount);
+                        temp[5] = (uint8_t)(req.password[0]);
+                        temp[6] = (uint8_t)(req.password[1]);
+                        temp[7] = (uint8_t)(req.password[2]);
+                        temp[8] = (uint8_t)(req.password[3]);
+                        temp[9] = (uint8_t)(req.value>>8);
+                        temp[10] = (uint8_t)(req.value);
                         break;
-                    }
-                    memset(temp, 0x0, event.size);
-                    uart_read_bytes(UART_NUM_0,temp,event.size,portMAX_DELAY);
-                    esp_ble_gattc_write_char( spp_gattc_if,
-                                              spp_conn_id,
-                                              (db+SPP_IDX_SPP_DATA_RECV_VAL)->attribute_handle,
-                                              event.size,
-                                              temp,
-                                              ESP_GATT_WRITE_TYPE_RSP,
-                                              ESP_GATT_AUTH_REQ_NONE);
-                    free(temp);
+                    case DEPOSIT:
+                        len = 7;
+                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
+                        memset(temp, 0x0, len);
+                        temp[0] = (uint8_t)(req.cmd);
+                        temp[1] = (uint8_t)(req.acount>>24);
+                        temp[2] = (uint8_t)(req.acount>>16);
+                        temp[3] = (uint8_t)(req.acount>>8);
+                        temp[4] = (uint8_t)(req.acount);
+                        temp[5] = (uint8_t)(req.value>>8);
+                        temp[6] = (uint8_t)(req.value);
+                        break;
+                    case TRANSFER:
+                        len = 15;
+                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
+                        memset(temp, 0x0, len);
+                        temp[0] = (uint8_t)(req.cmd);
+                        temp[1] = (uint8_t)(req.acount>>24);
+                        temp[2] = (uint8_t)(req.acount>>16);
+                        temp[3] = (uint8_t)(req.acount>>8);
+                        temp[4] = (uint8_t)(req.acount);
+                        temp[5] = (uint8_t)(req.password[0]);
+                        temp[6] = (uint8_t)(req.password[1]);
+                        temp[7] = (uint8_t)(req.password[2]);
+                        temp[8] = (uint8_t)(req.password[3]);
+                        temp[9] = (uint8_t)(req.secAcount>>24);
+                        temp[10] = (uint8_t)(req.secAcount>>16);
+                        temp[11] = (uint8_t)(req.secAcount>>8);
+                        temp[12] = (uint8_t)(req.secAcount);
+                        temp[13] = (uint8_t)(req.value>>8);
+                        temp[14] = (uint8_t)(req.value);
+                        break;
+                    case BALANCE:
+                    case STATEMENT:
+                        len = 9;
+                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
+                        memset(temp, 0x0, len);
+                        temp[0] = (uint8_t)(req.cmd);
+                        temp[1] = (uint8_t)(req.acount>>24);
+                        temp[2] = (uint8_t)(req.acount>>16);
+                        temp[3] = (uint8_t)(req.acount>>8);
+                        temp[4] = (uint8_t)(req.acount);
+                        temp[5] = (uint8_t)(req.password[0]);
+                        temp[6] = (uint8_t)(req.password[1]);
+                        temp[7] = (uint8_t)(req.password[2]);
+                        temp[8] = (uint8_t)(req.password[3]);
+                        break;
+                    default:
+                        ESP_LOGE(GATTC_TAG, "Invalid request");
+                        break;
                 }
-                break;
-            default:
-                break;
+                if(temp == NULL){
+                    ESP_LOGE(GATTC_TAG, "malloc failed,%s L#%d\n", __func__, __LINE__);
+                    break;
+                }
+                if(len > 0)
+                    esp_ble_gattc_write_char( spp_gattc_if,
+                                                spp_conn_id,
+                                                (db+SPP_IDX_SPP_DATA_RECV_VAL)->attribute_handle,
+                                                len,
+                                                temp,
+                                                ESP_GATT_WRITE_TYPE_RSP,
+                                                ESP_GATT_AUTH_REQ_NONE);
+                                                
+                free(temp);
             }
-        }
-        vTaskDelay(1000 / portTICK_PERIOD_MS);
-        if ((is_connect == true)) {
-            ESP_LOGI("test", "sending");
-            uint8_t * temp = NULL;
-            temp = (uint8_t *)malloc(sizeof(uint8_t)*(0x0A));
-            if(temp == NULL){
-                ESP_LOGE(GATTC_TAG, "malloc failed,%s L#%d\n", __func__, __LINE__);
-                break;
-            }
-            memset(temp, 0x0, (0x0A));
-            for(size_t i=0; i<0x0a; i++)
-                temp[i] = i; 
-            esp_ble_gattc_write_char( spp_gattc_if,
-                                        spp_conn_id,
-                                        (db+SPP_IDX_SPP_DATA_RECV_VAL)->attribute_handle,
-                                        (0x0A),
-                                        temp,
-                                        ESP_GATT_WRITE_TYPE_RSP,
-                                        ESP_GATT_AUTH_REQ_NONE);
-            free(temp);
         }
     }
     vTaskDelete(NULL);
 }
 
-static void spp_uart_init(void)
-{
+void requestTask(void* args){
+    while(commQueue == NULL);
+    request req;
+    req.acount = 1234;
+    req.password[0] = 9;
+    req.password[1] = 9;
+    req.password[2] = 9;
+    req.password[3] = 9;
+    req.secAcount = 4321;
+    req.value = 10000;
+    while(true){
+        req.cmd = WITHDRAW;
+        xQueueSend(commQueue, &req, 10/portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        req.cmd = DEPOSIT;
+        xQueueSend(commQueue, &req, 10/portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        req.cmd = TRANSFER;
+        xQueueSend(commQueue, &req, 10/portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        req.cmd = BALANCE;
+        xQueueSend(commQueue, &req, 10/portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+
+        req.cmd = STATEMENT;
+        xQueueSend(commQueue, &req, 10/portTICK_PERIOD_MS);
+        vTaskDelay(1000 / portTICK_PERIOD_MS);
+    }
+}
+
+static void bleCommInit(void){
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -615,8 +559,10 @@ static void spp_uart_init(void)
     uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     //Install UART driver, and get the queue.
     uart_driver_install(UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0);
+
     ESP_LOGI("test", "create task");
-    xTaskCreate(uart_task, "uTask", 2048, (void*)UART_NUM_0, 8, NULL);
+    commQueue = xQueueCreate(10, sizeof(request));
+    xTaskCreate(commTask, "cTask", 2048, NULL, 8, NULL);
 }
 
 void app_main()
@@ -653,5 +599,7 @@ void app_main()
     }
  
     ble_client_appRegister();
-    spp_uart_init();
+    bleCommInit();
+
+    xTaskCreate(requestTask, "rTask", 2048, NULL, 8, NULL);
 }

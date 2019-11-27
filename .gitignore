@@ -4,8 +4,8 @@
 ## Get latest from https://github.com/github/gitignore/blob/master/VisualStudio.gitignore
 
 
-./client/build/
-./server/build/
+client/build/
+server/build/
 
 # User-specific files
 *.suo

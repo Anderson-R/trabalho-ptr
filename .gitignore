@@ -6,6 +6,7 @@
 
 client/build/
 server/build/
+.vscode/
 
 # User-specific files
 *.suo

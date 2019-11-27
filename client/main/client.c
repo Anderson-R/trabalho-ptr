@@ -78,7 +78,7 @@ static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data){
                 }
                 memcpy((notify_value_p + notify_value_offset),(p_data->notify.value + 4),(p_data->notify.value_len - 4));
                 if(p_data->notify.value[2] == p_data->notify.value[3]){
-                    uart_write_bytes(UART_NUM_0, (char *)(notify_value_p), (p_data->notify.value_len - 4 + notify_value_offset));
+                    //uart_write_bytes(UART_NUM_0, (char *)(notify_value_p), (p_data->notify.value_len - 4 + notify_value_offset));
                     free(notify_value_p);
                     notify_value_p = NULL;
                     notify_value_offset = 0;
@@ -88,7 +88,7 @@ static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data){
             }else if(p_data->notify.value[3] <= p_data->notify.value[2]){
                 memcpy((notify_value_p + notify_value_offset),(p_data->notify.value + 4),(p_data->notify.value_len - 4));
                 if(p_data->notify.value[3] == p_data->notify.value[2]){
-                    uart_write_bytes(UART_NUM_0, (char *)(notify_value_p), (p_data->notify.value_len - 4 + notify_value_offset));
+                    //uart_write_bytes(UART_NUM_0, (char *)(notify_value_p), (p_data->notify.value_len - 4 + notify_value_offset));
                     free(notify_value_p);
                     notify_value_count = 0;
                     notify_value_p = NULL;
@@ -98,7 +98,8 @@ static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data){
                 notify_value_offset += (p_data->notify.value_len - 4);
             }
         }else{
-            uart_write_bytes(UART_NUM_0, (char *)(p_data->notify.value), p_data->notify.value_len);
+            //uart_write_bytes(UART_NUM_0, (char *)(p_data->notify.value), p_data->notify.value_len);
+            //printf("%s", (char *)(p_data->notify.value));
         }
 #endif
     }else if(handle == ((db+SPP_IDX_SPP_STATUS_VAL)->attribute_handle)){
@@ -410,7 +411,7 @@ void ble_client_appRegister(void){
     }
 
     cmd_reg_queue = xQueueCreate(10, sizeof(uint32_t));
-    xTaskCreate(spp_client_reg_task, "spp_client_reg_task", 2048, NULL, 10, NULL);
+    xTaskCreate(spp_client_reg_task, "spp_client_reg_task", 2048, NULL, 2, NULL);
 }
 
 void commTask(void *pvParameters){
@@ -418,6 +419,7 @@ void commTask(void *pvParameters){
     for (;;) {
         //Waiting for request.
         if (xQueueReceive(commQueue, &req, 1000 / portTICK_PERIOD_MS)) {
+            printf("received request\n");
             if ((is_connect == true) && ((db+SPP_IDX_SPP_DATA_RECV_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))) {
                 ESP_LOGI("test", "sending");
                 uint8_t* temp = NULL;
@@ -544,6 +546,7 @@ void requestTask(void* args){
 }
 
 static void bleCommInit(void){
+    /*
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -559,14 +562,14 @@ static void bleCommInit(void){
     uart_set_pin(UART_NUM_0, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
     //Install UART driver, and get the queue.
     uart_driver_install(UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0);
-
-    ESP_LOGI("test", "create task");
+    */
     commQueue = xQueueCreate(10, sizeof(request));
-    xTaskCreate(commTask, "cTask", 2048, NULL, 8, NULL);
+    xTaskCreate(commTask, "cTask", 2048, NULL, 1, NULL);
 }
 
-void app_main()
-{
+void app_main(){
+
+    esp_log_level_set("*", ESP_LOG_NONE);
     esp_err_t ret;
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));
@@ -601,5 +604,6 @@ void app_main()
     ble_client_appRegister();
     bleCommInit();
 
-    xTaskCreate(requestTask, "rTask", 2048, NULL, 8, NULL);
+    //xTaskCreate(requestTask, "rTask", 2048, NULL, 1, NULL);
+    keypadInit();
 }

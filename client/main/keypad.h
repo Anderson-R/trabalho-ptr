@@ -1,3 +1,6 @@
+#pragma once
+
+#include <stdint.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -5,14 +8,19 @@
 #include "freertos/task.h"
 #include "freertos/queue.h"
 #include "driver/gpio.h"
+#include "typedef.h"
+#include "driver/uart.h"
 
-#define GPIO_LINE_0         GPIO_NUM_13
-#define GPIO_LINE_1         GPIO_NUM_12
-#define GPIO_LINE_2         GPIO_NUM_14
-#define GPIO_LINE_3         GPIO_NUM_27
-#define GPIO_LINE_PIN_SEL   ((1ULL<<GPIO_LINE_0) | (1ULL<<GPIO_LINE_1) | (1ULL<<GPIO_LINE_2) | (1ULL<<GPIO_LINE_3))
-#define GPIO_COL_0          GPIO_NUM_26
-#define GPIO_COL_1          GPIO_NUM_25
-#define GPIO_COL_2          GPIO_NUM_33
-#define GPIO_COL_3          GPIO_NUM_32
-#define GPIO_COL_PIN_SEL    ((1ULL<<GPIO_COL_0) | (1ULL<<GPIO_COL_1) | (1ULL<<GPIO_COL_2) | (1ULL<<GPIO_COL_3))
+void keypadInit(void);
+void lineStep(void);
+void scan(void* args);
+void welcome(void);
+char operations(void);
+void interface(void);
+char getKey(void);
+void withdraw(void);
+char getWord(char* word, bool hide, uint8_t maxSize);
+void deposit(void);
+void transfer(void);
+void balance(void);
+void statement(void);

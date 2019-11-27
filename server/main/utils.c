@@ -1,25 +1,26 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 typedef struct{
     int account;
-    float balance;
+    uint16_t balance;
     char password[5];
 }central_client;
 
-int validade(float balance, float value){
+int validade(uint16_t balance, uint16_t value){
     return balance >= value;
 }
 
-void withdraw(central_client* cliente1, float value){
+void withdraw(central_client* cliente1, uint16_t value){
     cliente1->balance -= value;
 }
 
-void deposit(central_client* cliente1, float value){
+void deposit(central_client* cliente1, uint16_t value){
     cliente1->balance += value;
 }
 
-void transfer(central_client* cliente1, central_client* cliente2, float value){
+void transfer(central_client* cliente1, central_client* cliente2, uint16_t value){
     cliente1->balance -= value;
     cliente2->balance += value;
 }
@@ -33,7 +34,7 @@ int correct_password(char *password, central_client *client){
     return (!strcmp(password, client->password));
 }
 
-int operation(central_client* aux1,central_client* aux2, float value, int transaction){
+int operation(central_client* aux1,central_client* aux2, uint16_t value, int transaction){
     
     printf("Senha eh: %s\n", aux1->password);
     if (correct_password("0123", aux1))

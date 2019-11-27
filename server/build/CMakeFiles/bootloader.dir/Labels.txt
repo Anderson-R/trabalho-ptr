@@ -1,0 +1,13 @@
+# Target labels
+ bootloader
+# Source files and their labels
+/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader
+/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader.rule
+/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader-complete.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule
+/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule

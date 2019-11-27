@@ -1,0 +1,43 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/CMakeFiles/bootloader-complete.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-install.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-mkdir.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-download.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-update.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-patch.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-configure.rule"
+		},
+		{
+			"file" : "/home/ian/esp/trabalho-ptr/server/build/bootloader-prefix/src/bootloader-stamp/bootloader-build.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"bootloader"
+		],
+		"name" : "bootloader"
+	}
+}

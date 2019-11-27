@@ -4,8 +4,9 @@ uint8_t lines[4] = {GPIO_LINE_0, GPIO_LINE_1, GPIO_LINE_2, GPIO_LINE_3};
 uint8_t columns[4] = {GPIO_COL_0, GPIO_COL_1, GPIO_COL_2, GPIO_COL_3};
 uint8_t lineSel[4] = {1, 0, 0, 0};
 char hiden[1] = {'*'};
-char newline[2] = {'\r', '\n'};
+char newline[1] = {'\n'};
 xQueueHandle keyQueue = NULL;
+static const char* bankTag = "UnBank";
 
 char keys[4][4] =   {{'1', '2', '3', 'A'},
                     {'4', '5', '6', 'B'},
@@ -91,15 +92,19 @@ void scan(void* args){
 }
 
 void welcome(void){
-    printf("Welcome to UNBank!\n");
+    clearTerminal();
+    ESP_LOGI(bankTag, "**********Welcome to UNBank!**********");
+}
+void clearTerminal(void){
+    ESP_LOGI(bankTag, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n");
 }
 char operations(void){
-    printf("Choose a operation:\n");
-    printf("1 - Withdrawal\n");
-    printf("2 - Deposit\n");
-    printf("3 - Transfer\n");
-    printf("4 - Balance\n");
-    printf("5 - Statement\n");
+    ESP_LOGI(bankTag, "Choose an operation:");
+    ESP_LOGI(bankTag, "1 - Withdrawal");
+    ESP_LOGI(bankTag, "2 - Deposit");
+    ESP_LOGI(bankTag, "3 - Transfer");
+    ESP_LOGI(bankTag, "4 - Balance");
+    ESP_LOGI(bankTag, "5 - Statement");
     
     return getKey();
 }
@@ -152,7 +157,9 @@ char getWord(char* word, bool hide, uint8_t maxSize){
         }
     } while(digit != '#' && digit != '*' && i < maxSize);
     word[i] = '\0';
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    //uart_write_bytes(UART_NUM_0, newline, 1);
+    printf("\n");
+    ESP_LOGI(bankTag, "\n");
     return digit;
 }
 
@@ -161,24 +168,23 @@ void withdraw(void){
     request.cmd = WITHDRAW;
     char* word = malloc(sizeof(char)*15);
 
-    printf("WITHDRAW\n");
+    ESP_LOGI(bankTag, "WITHDRAW");
     
-    printf("Please enter your acount number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your acount number: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.acount = atoi(word);
     
-    printf("Please enter the value: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the value: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.value = atoi(word);
     
-    printf("Please enter your password: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your password: ('*' = enter; '#' = cancel)");
     if(getWord((char*)request.password, true, 4) == '#') return;
 
-    printf("op: %d \t conta: %d \t valor: %d \t senha: %s\n\n", request.cmd, request.acount, request.value, request.password);
+    //ESP_LOGI(bankTag, "op: %d \t conta: %d \t valor: %d \t senha: %s\n\n", request.cmd, request.acount, request.value, request.password);
     xQueueSend(commQueue, &request, 10/portTICK_PERIOD_MS);
+    response response = waitResponse(10);
+    responseInterpreter(response);
 }
 
 void deposit(void){
@@ -186,21 +192,20 @@ void deposit(void){
     request.cmd = DEPOSIT;
     char* word = malloc(sizeof(char)*12);
 
-    printf("DEPOSIT\n");
+    ESP_LOGI(bankTag, "DEPOSIT");
     
-    printf("Please enter the acount number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the acount number: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.acount = atoi(word);
     
-    printf("Please enter the value: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the value: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.value = atoi(word);
 
-    printf("op: %d \t conta: %d \t valor: %d\n\n", request.cmd, request.acount, request.value);
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    //ESP_LOGI(bankTag, "op: %d \t conta: %d \t valor: %d\n\n", request.cmd, request.acount, request.value);
     xQueueSend(commQueue, &request, 10/portTICK_PERIOD_MS);
+    response response = waitResponse(10);
+    responseInterpreter(response);
 }
 
 void transfer(void){
@@ -208,54 +213,54 @@ void transfer(void){
     request.cmd = TRANSFER;
     char* word = malloc(sizeof(char)*15);
 
-    printf("TRANSFER\n");
+    ESP_LOGI(bankTag, "TRANSFER");
 
-    printf("Please enter your acount number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your acount number: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.acount = atoi(word);
     memset(word, 0, 15);
     
-    printf("Please enter the destination account number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the destination account number: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.secAcount = atoi(word);
     memset(word, 0, 15);
 
-    printf("Please enter the value: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the value: ('*' = enter; '#' = cancel)");
     if(getWord(word, false, 10) == '#') return;
     request.value = atoi(word);
     memset(word, 0, 15);
     
-    printf("Please enter your password: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your password: ('*' = enter; '#' = cancel)");
     if(getWord((char*)request.password, true, 4) == '#') return;
 
-    printf("op: %d \t conta1: %d \t conta2: %d \t valor: %d \t senha: %s\n\n", request.cmd, request.acount, request.secAcount, request.value, request.password);
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    //ESP_LOGI(bankTag, "op: %d \t conta1: %d \t conta2: %d \t valor: %d \t senha: %s\n\n", request.cmd, request.acount, request.secAcount, request.value, request.password);
+    uart_write_bytes(UART_NUM_0, newline, 1);
     xQueueSend(commQueue, &request, 10/portTICK_PERIOD_MS);
+    response response = waitResponse(10);
+    responseInterpreter(response);
 }
 
 void balance(void){
     request request;
     request.cmd = BALANCE;
-    printf("BALANCE\n");
-    printf("Please enter the acount number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "BALANCE");
+    ESP_LOGI(bankTag, "Please enter the acount number: ('*' = enter; '#' = cancel)");
+    uart_write_bytes(UART_NUM_0, newline, 1);
     char* word = malloc(sizeof(char)*12);
     char ret = getWord(word, false, 10);
     if(ret == '#') return;
     request.acount = atoi(word);
     
-    printf("Please enter your password: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your password: ('*' = enter; '#' = cancel)");
+    uart_write_bytes(UART_NUM_0, newline, 1);
     ret = getWord((char*)request.password, true, 4);
     if(ret == '#') return;
 
-    printf("op: %d \t conta: %d \t senha: %s\n\n", request.cmd, request.acount, request.password);
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    //ESP_LOGI(bankTag, "op: %d \t conta: %d \t senha: %s\n\n", request.cmd, request.acount, request.password);
+    uart_write_bytes(UART_NUM_0, newline, 1);
     xQueueSend(commQueue, &request, 10/portTICK_PERIOD_MS);
+    response response = waitResponse(10);
+    responseInterpreter(response);
 }
 
 void statement(void){
@@ -263,20 +268,70 @@ void statement(void){
     request.cmd = STATEMENT;
     char* word = malloc(sizeof(char)*12);
     
-    printf("STATEMENT\n");
+    ESP_LOGI(bankTag, "STATEMENT");
     
-    printf("Please enter the acount number: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter the acount number: ('*' = enter; '#' = cancel)");
+    uart_write_bytes(UART_NUM_0, newline, 1);
     if(getWord(word, false, 10) == '#') return;
     request.acount = atoi(word);
     
-    printf("Please enter your password: ('*' = enter; '#' = cancel)\n");
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    ESP_LOGI(bankTag, "Please enter your password: ('*' = enter; '#' = cancel)");
+    uart_write_bytes(UART_NUM_0, newline, 1);
     if(getWord((char*)request.password, true, 4) == '#') return;
 
-    printf("op: %d \t conta: %d \t senha: %s\n\n", request.cmd, request.acount, request.password);
-    uart_write_bytes(UART_NUM_0, newline, 2);
+    //ESP_LOGI(bankTag, "op: %d \t conta: %d \t senha: %s\n\n", request.cmd, request.acount, request.password);
+    uart_write_bytes(UART_NUM_0, newline, 1);
     xQueueSend(commQueue, &request, 10/portTICK_PERIOD_MS);
+    response response = waitResponse(10);
+    responseInterpreter(response);
+}
+
+response waitResponse(uint8_t t){
+    uint8_t answered = false;
+    response response;
+    for(size_t j=0; j<t; j++){
+        if(xQueueReceive(responseQueue, &response, 1000/portTICK_PERIOD_MS)) {
+            answered = true;
+            break;
+        }
+    }
+    if(answered){
+        ESP_LOGI(bankTag, "got answer!");
+        return response;
+    }
+    ESP_LOGE(bankTag, "TIMEOUT!");
+    response.status = TIMEOUT;
+    return response;
+}
+
+void responseInterpreter(response response){
+    if(response.status == APROVED){
+        ESP_LOGI(bankTag, "The Transaction Was Aproved!");
+        return;
+    }
+    else if(response.status == TIMEOUT){
+        ESP_LOGE(bankTag, "The Transaction Got No Response From The Server!");
+        return;
+    }
+
+    ESP_LOGE(bankTag, "The Transaction Was NOT Aproved!");
+    ESP_LOGE(bankTag, "Reason: ");
+    switch(response.reason){
+        case NO_FUNDS:
+            ESP_LOGE(bankTag, "insufficient founds.");
+            break;
+        case WRONG_PASSWORD:
+            ESP_LOGE(bankTag, "wrong password.");
+            break;
+        case INVALID_ACOUNT:
+            ESP_LOGE(bankTag, "the acount does not exist.");
+            break;
+        case INVALID_DEST_ACOUNT:
+            ESP_LOGE(bankTag, "the destination acount does not exist.");
+            break;
+        default:
+            break;
+    }
 }
 
 

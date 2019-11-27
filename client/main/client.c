@@ -39,6 +39,7 @@ static esp_ble_gap_cb_param_t scan_rst;
 static xQueueHandle cmd_reg_queue = NULL;
 QueueHandle_t spp_uart_queue = NULL;
 QueueHandle_t commQueue = NULL;
+QueueHandle_t responseQueue = NULL;
 
 static esp_bt_uuid_t spp_service_uuid = {
     .len  = ESP_UUID_LEN_16,
@@ -100,6 +101,13 @@ static void notify_event_handler(esp_ble_gattc_cb_param_t * p_data){
         }else{
             //uart_write_bytes(UART_NUM_0, (char *)(p_data->notify.value), p_data->notify.value_len);
             //printf("%s", (char *)(p_data->notify.value));
+            if(p_data->notify.value_len == 2){
+                response response;
+                response.status = (uint8_t)(p_data->notify.value)[0];
+                response.reason = (uint8_t)(p_data->notify.value)[1];
+                xQueueSend(responseQueue, &response, 10/portTICK_PERIOD_MS);
+            }
+            
         }
 #endif
     }else if(handle == ((db+SPP_IDX_SPP_STATUS_VAL)->attribute_handle)){
@@ -419,79 +427,30 @@ void commTask(void *pvParameters){
     for (;;) {
         //Waiting for request.
         if (xQueueReceive(commQueue, &req, 1000 / portTICK_PERIOD_MS)) {
-            printf("received request\n");
+            ESP_LOGI("test", "received request\n");
             if ((is_connect == true) && ((db+SPP_IDX_SPP_DATA_RECV_VAL)->properties & (ESP_GATT_CHAR_PROP_BIT_WRITE_NR | ESP_GATT_CHAR_PROP_BIT_WRITE))) {
                 ESP_LOGI("test", "sending");
                 uint8_t* temp = NULL;
-                size_t len = 0;
-                switch(req.cmd){
-                    case WITHDRAW:
-                        len = 11;
-                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
-                        memset(temp, 0x0, len);
-                        temp[0] = (uint8_t)(req.cmd);
-                        temp[1] = (uint8_t)(req.acount>>24);
-                        temp[2] = (uint8_t)(req.acount>>16);
-                        temp[3] = (uint8_t)(req.acount>>8);
-                        temp[4] = (uint8_t)(req.acount);
-                        temp[5] = (uint8_t)(req.password[0]);
-                        temp[6] = (uint8_t)(req.password[1]);
-                        temp[7] = (uint8_t)(req.password[2]);
-                        temp[8] = (uint8_t)(req.password[3]);
-                        temp[9] = (uint8_t)(req.value>>8);
-                        temp[10] = (uint8_t)(req.value);
-                        break;
-                    case DEPOSIT:
-                        len = 7;
-                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
-                        memset(temp, 0x0, len);
-                        temp[0] = (uint8_t)(req.cmd);
-                        temp[1] = (uint8_t)(req.acount>>24);
-                        temp[2] = (uint8_t)(req.acount>>16);
-                        temp[3] = (uint8_t)(req.acount>>8);
-                        temp[4] = (uint8_t)(req.acount);
-                        temp[5] = (uint8_t)(req.value>>8);
-                        temp[6] = (uint8_t)(req.value);
-                        break;
-                    case TRANSFER:
-                        len = 15;
-                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
-                        memset(temp, 0x0, len);
-                        temp[0] = (uint8_t)(req.cmd);
-                        temp[1] = (uint8_t)(req.acount>>24);
-                        temp[2] = (uint8_t)(req.acount>>16);
-                        temp[3] = (uint8_t)(req.acount>>8);
-                        temp[4] = (uint8_t)(req.acount);
-                        temp[5] = (uint8_t)(req.password[0]);
-                        temp[6] = (uint8_t)(req.password[1]);
-                        temp[7] = (uint8_t)(req.password[2]);
-                        temp[8] = (uint8_t)(req.password[3]);
-                        temp[9] = (uint8_t)(req.secAcount>>24);
-                        temp[10] = (uint8_t)(req.secAcount>>16);
-                        temp[11] = (uint8_t)(req.secAcount>>8);
-                        temp[12] = (uint8_t)(req.secAcount);
-                        temp[13] = (uint8_t)(req.value>>8);
-                        temp[14] = (uint8_t)(req.value);
-                        break;
-                    case BALANCE:
-                    case STATEMENT:
-                        len = 9;
-                        temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
-                        memset(temp, 0x0, len);
-                        temp[0] = (uint8_t)(req.cmd);
-                        temp[1] = (uint8_t)(req.acount>>24);
-                        temp[2] = (uint8_t)(req.acount>>16);
-                        temp[3] = (uint8_t)(req.acount>>8);
-                        temp[4] = (uint8_t)(req.acount);
-                        temp[5] = (uint8_t)(req.password[0]);
-                        temp[6] = (uint8_t)(req.password[1]);
-                        temp[7] = (uint8_t)(req.password[2]);
-                        temp[8] = (uint8_t)(req.password[3]);
-                        break;
-                    default:
-                        ESP_LOGE(GATTC_TAG, "Invalid request");
-                        break;
-                }
+                size_t len = 15;
+                
+                temp = (uint8_t *)malloc(sizeof(uint8_t)*(len));
+                memset(temp, 0x0, len);
+                temp[0] = (uint8_t)(req.cmd);
+                temp[1] = (uint8_t)(req.acount>>24);
+                temp[2] = (uint8_t)(req.acount>>16);
+                temp[3] = (uint8_t)(req.acount>>8);
+                temp[4] = (uint8_t)(req.acount);
+                temp[5] = (uint8_t)(req.password[0]);
+                temp[6] = (uint8_t)(req.password[1]);
+                temp[7] = (uint8_t)(req.password[2]);
+                temp[8] = (uint8_t)(req.password[3]);
+                temp[9] = (uint8_t)(req.secAcount>>24);
+                temp[10] = (uint8_t)(req.secAcount>>16);
+                temp[11] = (uint8_t)(req.secAcount>>8);
+                temp[12] = (uint8_t)(req.secAcount);
+                temp[13] = (uint8_t)(req.value>>8);
+                temp[14] = (uint8_t)(req.value);
+
                 if(temp == NULL){
                     ESP_LOGE(GATTC_TAG, "malloc failed,%s L#%d\n", __func__, __LINE__);
                     break;
@@ -564,12 +523,14 @@ static void bleCommInit(void){
     uart_driver_install(UART_NUM_0, 4096, 8192, 10, &spp_uart_queue, 0);
     */
     commQueue = xQueueCreate(10, sizeof(request));
+    responseQueue = xQueueCreate(10, sizeof(response));
     xTaskCreate(commTask, "cTask", 2048, NULL, 1, NULL);
 }
 
 void app_main(){
 
     esp_log_level_set("*", ESP_LOG_NONE);
+    esp_log_level_set("UnBank", ESP_LOG_INFO);
     esp_err_t ret;
 
     ESP_ERROR_CHECK(esp_bt_controller_mem_release(ESP_BT_MODE_CLASSIC_BT));

@@ -2,6 +2,7 @@
 
 #include <stdint.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 #include "esp_gattc_api.h"
 
@@ -53,6 +54,8 @@ enum{
 };
 
 typedef enum{WITHDRAW, DEPOSIT, TRANSFER, BALANCE, STATEMENT} CMD;
+typedef enum{NO_FUNDS, WRONG_PASSWORD, INVALID_ACOUNT, INVALID_DEST_ACOUNT} REASON;
+typedef enum{APROVED, DESAPROVED, TIMEOUT} STAT;
 
 typedef struct {
     CMD cmd;
@@ -62,4 +65,10 @@ typedef struct {
     uint8_t password[4];
 } request;
 
+typedef struct {
+    uint8_t status;
+    uint8_t reason;
+} response;
+
 extern QueueHandle_t commQueue;
+extern QueueHandle_t responseQueue;

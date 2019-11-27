@@ -10,6 +10,7 @@
 #include "driver/gpio.h"
 #include "typedef.h"
 #include "driver/uart.h"
+#include "esp_log.h"
 
 void keypadInit(void);
 void lineStep(void);
@@ -24,3 +25,6 @@ void deposit(void);
 void transfer(void);
 void balance(void);
 void statement(void);
+response waitResponse(uint8_t t);
+void responseInterpreter(response response);
+void clearTerminal(void);

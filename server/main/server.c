@@ -419,6 +419,19 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         //ESP_LOGE("test", "%d", p_data->write.value[i]);
                     }
                     ESP_LOGE("test", "received %d bytes", p_data->write.len);
+                    if(p_data->write.len == 15){
+                        request req;
+                        req.cmd = p_data->write.value[0];
+                        req.acount = (uint32_t)((uint8_t)(p_data->write.value[1]<<24) | (uint8_t)(p_data->write.value[2]<<16) | (uint8_t)(p_data->write.value[3]>>8) | (uint8_t)(p_data->write.value[4]));
+                        req.password[0] = p_data->write.value[5];
+                        req.password[1] = p_data->write.value[6];
+                        req.password[2] = p_data->write.value[7];
+                        req.password[3] = p_data->write.value[8];
+                        req.acount = (uint32_t)((uint8_t)(p_data->write.value[9]<<24) | (uint8_t)(p_data->write.value[10]<<16) | (uint8_t)(p_data->write.value[11]>>8) | (uint8_t)(p_data->write.value[12]));
+                        req.acount = (uint16_t)((uint8_t)(p_data->write.value[1]<<24) | (uint8_t)(p_data->write.value[2]<<16));
+                    
+                        
+                    }
                     uint8_t temp[2] = {'a', 'b'};
                     esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL],2, temp, false);
 #endif

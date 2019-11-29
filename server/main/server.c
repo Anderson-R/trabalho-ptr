@@ -12,6 +12,9 @@ static esp_gatt_if_t spp_gatts_if = 0xff;
 QueueHandle_t spp_uart_queue = NULL;
 static xQueueHandle cmd_cmd_queue = NULL;
 
+QueueHandle_t requestQueue = NULL;
+QueueHandle_t responseQueue = NULL;
+
 static bool enable_data_ntf = false;
 static bool is_connected = false;
 static esp_bd_addr_t spp_remote_bda = {0x0,};
@@ -225,8 +228,7 @@ static void print_write_buffer(void){
     }
 }
 
-void uart_task(void *pvParameters)
-{
+void uart_task(void *pvParameters){
     uart_event_t event;
     uint8_t total_num = 0;
     uint8_t current_num = 0;
@@ -304,8 +306,7 @@ void uart_task(void *pvParameters)
     vTaskDelete(NULL);
 }
 
-static void spp_uart_init(void)
-{
+static void spp_uart_init(void){
     uart_config_t uart_config = {
         .baud_rate = 115200,
         .data_bits = UART_DATA_8_BITS,
@@ -324,8 +325,7 @@ static void spp_uart_init(void)
     xTaskCreate(uart_task, "uTask", 2048, (void*)UART_NUM_0, 8, NULL);
 }
 
-void spp_cmd_task(void * arg)
-{
+void spp_cmd_task(void * arg){
     uint8_t * cmd_id;
 
     for(;;){
@@ -338,16 +338,14 @@ void spp_cmd_task(void * arg)
     vTaskDelete(NULL);
 }
 
-static void spp_task_init(void)
-{
+static void spp_task_init(void){
     spp_uart_init();
 
     cmd_cmd_queue = xQueueCreate(10, sizeof(uint32_t));
     xTaskCreate(spp_cmd_task, "spp_cmd_task", 2048, NULL, 10, NULL);
 }
 
-static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param)
-{
+static void gap_event_handler(esp_gap_ble_cb_event_t event, esp_ble_gap_cb_param_t *param){
     esp_err_t err;
     ESP_LOGE(GATTS_TABLE_TAG, "GAP_EVT, event %d\n", event);
 
@@ -429,11 +427,20 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
                         req.password[3] = p_data->write.value[8];
                         req.acount = (uint32_t)((uint8_t)(p_data->write.value[9]<<24) | (uint8_t)(p_data->write.value[10]<<16) | (uint8_t)(p_data->write.value[11]>>8) | (uint8_t)(p_data->write.value[12]));
                         req.acount = (uint16_t)((uint8_t)(p_data->write.value[1]<<24) | (uint8_t)(p_data->write.value[2]<<16));
-                    
-                        
+                        xQueueSend(requestQueue, &req, 10/portTICK_PERIOD_MS);
+
                     }
-                    uint8_t temp[2] = {'a', 'b'};
-                    esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL],2, temp, false);
+
+                    response response;
+                    if(xQueueReceive(responseQueue, &response, 1000 / portTICK_PERIOD_MS)){
+                        uint8_t temp[5];
+                        temp[0] = response.status;
+                        temp[1] = (uint8_t)(response.reason>>24);
+                        temp[2] = (uint8_t)(response.reason>>16);
+                        temp[3] = (uint8_t)(response.reason>>8);
+                        temp[4] = (uint8_t)(response.reason);
+                        esp_ble_gatts_send_indicate(spp_gatts_if, spp_conn_id, spp_handle_table[SPP_IDX_SPP_DATA_NTY_VAL], 5, temp, false);
+                    }
 #endif
                 }else{
                     //TODO:
@@ -506,8 +513,7 @@ static void gatts_profile_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_
 }
 
 
-static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param)
-{
+static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_if, esp_ble_gatts_cb_param_t *param){
     ESP_LOGI(GATTS_TABLE_TAG, "EVT %d, gatts if %d\n", event, gatts_if);
 
     /* If event is register event, store the gatts_if for each profile */
@@ -531,6 +537,16 @@ static void gatts_event_handler(esp_gatts_cb_event_t event, esp_gatt_if_t gatts_
             }
         }
     } while (0);
+}
+
+void reqTask(void* args){
+    requestQueue = xQueueCreate(10, sizeof(request));
+    request req;
+    while(true){
+        if(xQueueReceive(requestQueue, &req, 1000 / portTICK_PERIOD_MS)){
+            
+        }
+    }
 }
 
 void app_main()

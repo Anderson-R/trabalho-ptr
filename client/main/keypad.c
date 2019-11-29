@@ -150,12 +150,14 @@ char getWord(char* word, bool hide, uint8_t maxSize){
     do{
         digit = getKey();
         if(digit != '#' && digit != '*'){
-            word[i] = digit;
             if(hide) uart_write_bytes(UART_NUM_0, hiden, 1); 
             else uart_write_bytes(UART_NUM_0, word+i, 1);
-            i++;
+            if(i < maxSize){
+                word[i] = digit;
+                i++;
+            }
         }
-    } while(digit != '#' && digit != '*' && i < maxSize);
+    } while(digit != '#' && digit != '*');
     word[i] = '\0';
     //uart_write_bytes(UART_NUM_0, newline, 1);
     printf("\n");

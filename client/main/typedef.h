@@ -67,7 +67,7 @@ typedef struct {
 
 typedef struct {
     uint8_t status;
-    uint8_t reason;
+    uint32_t reason;
 } response;
 
 extern QueueHandle_t commQueue;
